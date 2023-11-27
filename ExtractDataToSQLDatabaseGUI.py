@@ -3,6 +3,7 @@ import pyautogui
 import pyperclip
 import time
 import re
+import tkinter as tk
 
 import mysql.connector
 
@@ -590,23 +591,57 @@ def Extract_Data_Dia(contents,Link):
 
     print(CALORIES_PER_100G, TOTAL_WEIGHT)
 
+def PasteSingleProductLinkIntoEntry():
+    LinkToPaste = pyperclip.paste()
+    AddProductLinkEntry.delete(0, tk.END)
+    AddProductLinkEntry.insert(0, LinkToPaste)
 
-
-
-URL_use = input("URL please:")
-#TestSettingsCheck(URL_use)
-#WP_info = Open_and_Copy_Webpage_Contents(URL_use)
-if(not Check_If_URL_Exists_In_Database(URL_use)):
-    #We can try to grab the data and Insert into the database
-    if(URL_use[0:19]=="https://www.dia.es/"):
-        Shop_Dia, Country_Dia = extract_shop_and_country(URL_use)
-        print(Shop_Dia, Country_Dia)
-        DiaProductName, DiaProductPrice,DiaTotalWeight, DiaCalories_per_100g, DiaFats_per_100g, DiaSaturatedFats_per_100g, DiaCarbohydrates_per_100g, DiaSugars_per_100g, DiaFibers_per_100g, DiaProtein_per_100g, DiaSalt_per_100g, DiaProtienValueDiaProduct, DiaProtienEnergyEfficiencyDiaProduct, DiaProteinValueEnergyEfficiencyDiaProduct, Accurate = Extract_Data_From_Dia_Spain_Using_Inspect(URL_use)
-        Snack, Ingredient, Meal = 1, 1, 0
-        InsertProductwithSQL(Country_Dia,"Pamplona",DiaProductName,Snack,Meal,Ingredient,Shop_Dia,URL_use,DiaProductPrice,DiaTotalWeight,DiaCalories_per_100g,DiaFats_per_100g,DiaSaturatedFats_per_100g,DiaCarbohydrates_per_100g,DiaSugars_per_100g,DiaFibers_per_100g,DiaProtein_per_100g,DiaSalt_per_100g,DiaProtienValueDiaProduct,DiaProtienEnergyEfficiencyDiaProduct,DiaProteinValueEnergyEfficiencyDiaProduct,Accurate)
-    elif (URL_use[0:28]=="https://groceries.aldi.co.uk"):
-        Extract_Data_From_ALDI_UK_Using_Inspect(URL_use)
+def SingleLinkDataCode(): # Main CODE
+    URL_use =AddProductLinkEntry.get()
+    #TestSettingsCheck(URL_use)
+    #WP_info = Open_and_Copy_Webpage_Contents(URL_use)
+    if(not Check_If_URL_Exists_In_Database(URL_use)):
+        #We can try to grab the data and Insert into the database
+        if(URL_use[0:19]=="https://www.dia.es/"):
+            try:
+                Shop_Dia, Country_Dia = extract_shop_and_country(URL_use)
+                print(Shop_Dia, Country_Dia)
+                DiaProductName, DiaProductPrice,DiaTotalWeight, DiaCalories_per_100g, DiaFats_per_100g, DiaSaturatedFats_per_100g, DiaCarbohydrates_per_100g, DiaSugars_per_100g, DiaFibers_per_100g, DiaProtein_per_100g, DiaSalt_per_100g, DiaProtienValueDiaProduct, DiaProtienEnergyEfficiencyDiaProduct, DiaProteinValueEnergyEfficiencyDiaProduct, Accurate = Extract_Data_From_Dia_Spain_Using_Inspect(URL_use)
+                Snack, Ingredient, Meal = 1, 1, 0
+                InsertProductwithSQL(Country_Dia,"Pamplona",DiaProductName,Snack,Meal,Ingredient,Shop_Dia,URL_use,DiaProductPrice,DiaTotalWeight,DiaCalories_per_100g,DiaFats_per_100g,DiaSaturatedFats_per_100g,DiaCarbohydrates_per_100g,DiaSugars_per_100g,DiaFibers_per_100g,DiaProtein_per_100g,DiaSalt_per_100g,DiaProtienValueDiaProduct,DiaProtienEnergyEfficiencyDiaProduct,DiaProteinValueEnergyEfficiencyDiaProduct,Accurate)
+                SingleProductLinkResultText.config(text="Success")
+            except:
+                SingleProductLinkResultText.config(text="Failed")
+        elif (URL_use[0:28]=="https://groceries.aldi.co.uk"):
+            try:
+                Extract_Data_From_ALDI_UK_Using_Inspect(URL_use)
+                SingleProductLinkResultText.config(text="Success")
+            except:
+                SingleProductLinkResultText.config(text="Failed")
+        else:
+            print("This webpage URL is not covered yet. Sorry.")
     else:
-        print("This webpage URL is not covered yet. Sorry.")
-else:
-    print("This product is already in the database.")
+        print("This product is already in the database.")
+
+
+window = tk.Tk()
+window.title("Extract PVEES Data From Webpage")
+window.geometry("1920x1080")
+
+AddProductLinkText = tk.Label(window, text="Product Link: ")
+AddProductLinkText.grid(row=0,column=0)
+AddProductLinkEntry = tk.Entry(window)
+AddProductLinkEntry.grid(row=0,column=1)
+AddProductLinkPaste = tk.Button(window,text="Paste Link",command=PasteSingleProductLinkIntoEntry)
+AddProductLinkPaste.grid(row=0,column=2)
+AddProductLinkButton = tk.Button(window, text = "Add Link", command=SingleLinkDataCode)
+AddProductLinkButton.grid(row=0,column=3)
+
+SingleProductLinkResultText = tk.Label(window, text="Ready")
+SingleProductLinkResultText.grid(row=1,column=0)
+
+
+ButtonExit = tk.Button(window, text="Exit program", command=window.destroy)
+ButtonExit.grid(row=3,column=0)
+
+window.mainloop()
