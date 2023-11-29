@@ -50,10 +50,6 @@ def TestSettingsCheck(link):
     pyautogui.moveTo(1850 - Screen_and_Inspect_Settings['Inspect_width'], 140 + Screen_and_Inspect_Settings['Inspect_height'], duration=1)
     time.sleep(5)
 
-
-    
-
-
 # Database connection parameters
 db_config = {
     'host': '127.0.0.1',
@@ -61,6 +57,43 @@ db_config = {
     'password': 'Python123',
     'database': 'pvees'
 }
+
+def PasteSingleProductLinkIntoEntry():
+    LinkToPaste = pyperclip.paste()
+    AddProductLinkEntry.delete(0, tk.END)
+    AddProductLinkEntry.insert(0, LinkToPaste)
+
+def PasteMultipleProductLinkIntoEntry():
+    LinkToPaste = pyperclip.paste()
+    MultipleProductLinkEntry.delete(0, tk.END)
+    MultipleProductLinkEntry.insert(0, LinkToPaste)
+
+def Check_Database_Status():
+    try:
+        connection = mysql.connector.connect(**db_config)
+        DBStatusText.config(text="Available")
+        window.after(1000,Check_Database_Status)
+    except:
+        DBStatusText.config(text="Not available")
+        window.after(1000,Check_Database_Status)
+
+def StripErrorMessageOfQuotesAndReplaceWithSemiColons(error_to_deal_with):
+    new_error_message = ""
+    for character in error_to_deal_with:
+        if character== "'":
+            new_error_message += ";"
+        else:
+            new_error_message += character
+    return new_error_message
+
+def Escape_Quote_Mark_In_String(string_given):
+    string_output = ""
+    for each_character in string_given:
+        if each_character == "'":
+            string_output += ";" # Need to fix this
+        else:
+            string_output += each_character
+    return string_output
 
 def Check_If_URL_Exists_In_Database(url):
     # Create a connection to the database
@@ -335,6 +368,10 @@ def Extract_Data_From_Dia_Spain_Using_Inspect(link):
     return ProductName, ProductPrice,TotalWeight, Calories_per_100g, Fats_per_100g, SaturatedFats_per_100g, Carbohydrates_per_100g, Sugars_per_100g, Fibers_per_100g, Protein_per_100g, Salt_per_100g, ProtienValueDiaProduct, ProtienEnergyEfficiencyDiaProduct, ProteinValueEnergyEfficiencyDiaProduct, 0
 
 def Aldi_UK_Automated_Pull_In(link_to_page_1): # Needs work/barely started
+    PATTERN_FOR_NUMBER_OF_PRODUCTS = r'<h1 class="font-weight-normal">[a-zA-Z ]+\(<span>[0-9]+<\/span>\)'
+    PATTERN_FOR_PRODUCT_LINKS = r'href="/en-GB/[A-Za-z-0-9%\';&]+/[0-9]+"'
+    PATTERN_FOR_NUMBER_OF_PAGES = r'&nbsp;of [0-9]+&nbsp'
+    
     # Open URL in Chrome
     Link_To_Page_without_Number = Extract_Nutitional_Item_Value(link_to_page_1,r'https://[a-zA-Z.\-/]+\?',0,200) + "&page="
     webbrowser.open(link_to_page_1)
@@ -361,8 +398,7 @@ def Aldi_UK_Automated_Pull_In(link_to_page_1): # Needs work/barely started
     # Press Enter
     pyautogui.press('enter')
 
-    PATTERN_FOR_NUMBER_OF_PRODUCTS = r'<h1 class="font-weight-normal">[a-zA-Z ]+\(<span>[0-9]+<\/span>\)'
-    PATTERN_FOR_PRODUCT_LINKS=r'href="/en-GB/[A-Za-z-0-9%\';&]+/[0-9]+"'
+    
 
     time.sleep(1)
 
@@ -384,14 +420,113 @@ def Aldi_UK_Automated_Pull_In(link_to_page_1): # Needs work/barely started
 
     time.sleep(1)
 
-
     AllProductsFromWebpage = pyperclip.paste()
 
-    
-    # Close the browser tab
-    # pyautogui.hotkey('ctrl', 'w')  # Use 'command' instead of 'ctrl' on macOS
+
+    ## Now grab data on number of webpages to use:
+    Number_of_Pages = int(Extract_Nutitional_Item_Value(Extract_Nutitional_Item_Value(AllProductsFromWebpage,PATTERN_FOR_NUMBER_OF_PAGES,0,100),r'[0-9]+',0,100))
+    print(Number_of_Pages)
+
+    pyautogui.hotkey('ctrl', 'w')  # Use 'command' instead of 'ctrl' on macOS
+
+    Product_Links = []
+
+    for page_number in range(1,Number_of_Pages+1):
+        Page_Link = Link_To_Page_without_Number + str(page_number)
+        webbrowser.open(Page_Link)
+
+        # Wait for the page to load
+        time.sleep(4)
+
+        #Move to 10, 100
+        pyautogui.moveTo(10, 200, duration=1)
+        pyautogui.click()
+
+        #Wait 1 second
+        time.sleep(1)
+
+        # Right click
+        pyautogui.click(button='right')
+
+        #Wait 2 seconds
+        time.sleep(1)
+
+        # Go up 1 item to Inspect
+        pyautogui.press('up')
+
+        # Press Enter
+        pyautogui.press('enter')
+
+        
+
+        time.sleep(1)
+
+        pyautogui.moveTo(1800, 140 + Screen_and_Inspect_Settings['Inspect_height'] - 5, duration=1)
+        pyautogui.click()
+
+        # Then Ctrl + F [You will now be in the search box]
+        pyautogui.hotkey('ctrl', 'f')
+        time.sleep(1)  # Wait for copy
+
+        # Now paste the contents of the search tem you want likely lots of information
+        pyautogui.typewrite("body")
+        time.sleep(1)
+        pyautogui.press('enter')
+        pyautogui.press('enter')
+        time.sleep(1)
+        pyautogui.moveTo(1800, 140 + Screen_and_Inspect_Settings['Inspect_height'] - 5, duration=1)
+        CopyElementDataToClipboard(6)
+
+        time.sleep(1)
+
+        AllProductsFromSpecificWebpage = pyperclip.paste()
+        # Search for the pattern in the text
+        Matches_Product_Links = re.findall(PATTERN_FOR_PRODUCT_LINKS, AllProductsFromSpecificWebpage)
+
+        # Print all matches       
+        for match in Matches_Product_Links:
+            ADD = 1
+            for PL in Product_Links:
+                if PL == "https://groceries.aldi.co.uk" + match[6:-1]:
+                    ADD=0
+            if ADD == 1:
+                Product_Links.append("https://groceries.aldi.co.uk" + match[6:-1])
+
+        # Close the browser tab
+        pyautogui.hotkey('ctrl', 'w')  # Use 'command' instead of 'ctrl' on macOS
+    print(Product_Links)
+    for product_link in Product_Links:
+        Protected_Single_Item_Aldi_Code(product_link)
 
 
+def Failed_Link_Insert_Record(failed_link,error_info):
+    # SQL statement to execute
+    SQL_Statement = f"INSERT INTO `failedlinks`(`Link`, `ErrorInfo`) VALUES ('{failed_link}','{error_info}')"
+    print(SQL_Statement)
+
+    try:
+        # Establish a database connection
+        connection = mysql.connector.connect(**db_config)
+
+        # Create a cursor object
+        cursor = connection.cursor()
+
+        # Execute the INSERT statement
+        cursor.execute(SQL_Statement)
+
+        # Commit the transaction
+        connection.commit()
+
+        print(f"Row inserted.{failed_link}")
+
+    except mysql.connector.Error as error:
+        print(f"Error: {error}")
+
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
+            print("MySQL connection is closed")
 
 def Extract_Data_From_ALDI_UK_Using_Inspect(link):
     # Open URL in Chrome
@@ -449,24 +584,24 @@ def Extract_Data_From_ALDI_UK_Using_Inspect(link):
     AldiUKProductName = Extract_Nutitional_Item_Value(AllProductDataFromWebpage,r'<h1 class="my-0">[a-zA-Z0-9 \'\-\+&;\/%]+</h1>',17,-5) 
     AldiUKProductPrice = float(Extract_Nutitional_Item_Value(AllProductDataFromWebpage,r'<span class="product-price h4 m-0 font-weight-bold">£[0-9].[0-9][0-9]</span>',53,-7))
     AldiProductTotalWeight = int(Extract_Nutitional_Item_Value(AllProductDataFromWebpage,r'<td>[0-9]+g<[/]td>',4,-6))
-    AldiNutritionalInformation = Extract_Nutitional_Item_Value(AllProductDataFromWebpage,r'Energy [0-9]+kJ, [0-9]+kcal Fat [0-9]+.?[0-9]?[0-9]?g of which saturates [0-9]+.?[0-9]?[0-9]?g Carbohydrate [0-9]+.?[0-9]?[0-9]?g of which sugars [0-9]+.?[0-9]?[0-9]?g Fibre [0-9]+.?[0-9]?[0-9]?g Protein [0-9]+.?[0-9]?[0-9]?g Salt &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',0,200)
+    AldiNutritionalInformation = Extract_Nutitional_Item_Value(AllProductDataFromWebpage,r'Energy [0-9]+kJ, [0-9]+kcal Fat &?l?t?;?[0-9]+.?[0-9]?[0-9]?g of which saturates &?l?t?;?[0-9]+.?[0-9]?[0-9]?g Carbohydrate &?l?t?;?[0-9]+.?[0-9]?[0-9]?g of which sugars &?l?t?;?[0-9]+.?[0-9]?[0-9]?g Fibre &?l?t?;?[0-9]+.?[0-9]?[0-9]?g Protein &?l?t?;?[0-9]+.?[0-9]?[0-9]?g Salt &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',0,200)
     #Needs much more filtering and protection
 
     print(AldiNutritionalInformation)
 
 
     AldiProductCalories = int(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'[0-9]+kcal',0,-4)) 
-    AldiProductFats = float(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'Fat [0-9]+.?[0-9]?[0-9]?g',4,-1)) 
-    AldiProductSats = float(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'which saturates [0-9]+.?[0-9]?[0-9]?g',16,-1)) 
-    AldiProductCarbohydrates = float(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'Carbohydrate [0-9]+.?[0-9]?[0-9]?g',13,-1)) 
-    AldiProductSugars = float(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'which sugars [0-9]+.?[0-9]?[0-9]?g',13,-1)) 
-    AldiProductFibers = float(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'Fibre [0-9]+.?[0-9]?[0-9]?g',6,-1)) 
-    AldiProductProtien = float(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'Protein [0-9]+.?[0-9]?[0-9]?g',8,-1)) 
+    AldiProductFats = float(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'Fat &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',4,-1)) 
+    AldiProductSats = float(Extract_Nutitional_Item_Value(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'which saturates &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',16,-1),r'[0-9]+.?[0-9]?[0-9]?',0,20)) 
+    AldiProductCarbohydrates = float(Extract_Nutitional_Item_Value(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'Carbohydrate &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',13,-1),r'[0-9]+.?[0-9]?[0-9]?',0,20)) 
+    AldiProductSugars = float(Extract_Nutitional_Item_Value(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'which sugars &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',12,-1),r'[0-9]+.?[0-9]?[0-9]?',0,20)) 
+    AldiProductFibers = float(Extract_Nutitional_Item_Value(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'Fibre &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',6,-1),r'[0-9]+.?[0-9]?[0-9]?',0,20)) 
+    AldiProductProtien = float(Extract_Nutitional_Item_Value(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'Protein &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',8,-1),r'[0-9]+.?[0-9]?[0-9]?',0,20)) 
     AldiProductSalt = float(Extract_Nutitional_Item_Value(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'Salt &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',5,-1),r'[0-9]+.?[0-9]?[0-9]?',0,20)) 
     AldiUKShop = "Aldi"
     AldiUKCountry = "United Kingdom"
     AldiUKProductPV, AldiUKProductPEE, AldiUKProductPVEES = CalulateScores(AldiProductProtien,AldiProductTotalWeight,AldiUKProductPrice,AldiProductCalories)
-    InsertProductwithSQL(AldiUKCountry,"Manchester",AldiUKProductName,1,0,1,AldiUKShop,link,AldiUKProductPrice,AldiProductTotalWeight,AldiProductCalories,AldiProductFats,AldiProductSats,AldiProductCarbohydrates,AldiProductSugars,AldiProductFibers,AldiProductProtien,AldiProductSalt,AldiUKProductPV,AldiUKProductPEE,AldiUKProductPVEES,0 )
+    InsertProductwithSQL(AldiUKCountry,"Manchester",Escape_Quote_Mark_In_String(AldiUKProductName),1,0,1,AldiUKShop,link,AldiUKProductPrice,AldiProductTotalWeight,AldiProductCalories,AldiProductFats,AldiProductSats,AldiProductCarbohydrates,AldiProductSugars,AldiProductFibers,AldiProductProtien,AldiProductSalt,AldiUKProductPV,AldiUKProductPEE,AldiUKProductPVEES,0 )
 
 
 
@@ -591,10 +726,6 @@ def Extract_Data_Dia(contents,Link):
 
     print(CALORIES_PER_100G, TOTAL_WEIGHT)
 
-def PasteSingleProductLinkIntoEntry():
-    LinkToPaste = pyperclip.paste()
-    AddProductLinkEntry.delete(0, tk.END)
-    AddProductLinkEntry.insert(0, LinkToPaste)
 
 def SingleLinkDataCode(): # Main CODE
     URL_use =AddProductLinkEntry.get()
@@ -610,38 +741,72 @@ def SingleLinkDataCode(): # Main CODE
                 Snack, Ingredient, Meal = 1, 1, 0
                 InsertProductwithSQL(Country_Dia,"Pamplona",DiaProductName,Snack,Meal,Ingredient,Shop_Dia,URL_use,DiaProductPrice,DiaTotalWeight,DiaCalories_per_100g,DiaFats_per_100g,DiaSaturatedFats_per_100g,DiaCarbohydrates_per_100g,DiaSugars_per_100g,DiaFibers_per_100g,DiaProtein_per_100g,DiaSalt_per_100g,DiaProtienValueDiaProduct,DiaProtienEnergyEfficiencyDiaProduct,DiaProteinValueEnergyEfficiencyDiaProduct,Accurate)
                 SingleProductLinkResultText.config(text="Success")
-            except:
+            except Exception as error:
                 SingleProductLinkResultText.config(text="Failed")
+                Failed_Link_Insert_Record(URL_use,StripErrorMessageOfQuotesAndReplaceWithSemiColons(str(error)))
         elif (URL_use[0:28]=="https://groceries.aldi.co.uk"):
-            try:
-                Extract_Data_From_ALDI_UK_Using_Inspect(URL_use)
-                SingleProductLinkResultText.config(text="Success")
-            except:
-                SingleProductLinkResultText.config(text="Failed")
+            Protected_Single_Item_Aldi_Code(URL_use)
         else:
             print("This webpage URL is not covered yet. Sorry.")
     else:
         print("This product is already in the database.")
 
+def Protected_Single_Item_Aldi_Code(URL_use):
+    try:
+        Extract_Data_From_ALDI_UK_Using_Inspect(URL_use)
+        SingleProductLinkResultText.config(text="Success")
+    except Exception as error:
+        SingleProductLinkResultText.config(text="Failed")
+        Failed_Link_Insert_Record(URL_use,StripErrorMessageOfQuotesAndReplaceWithSemiColons(str(error)))
+
+def MultipleResultsDataCode(results_page_link):
+    if(Extract_Nutitional_Item_Value(results_page_link,r'https://groceries.aldi.co.uk/en-GB/[a-zA-Z-/]+?',0,300)):
+       #Aldi multiple items
+       Aldi_UK_Automated_Pull_In(results_page_link)
+    else:
+        print("poop")
 
 window = tk.Tk()
 window.title("Extract PVEES Data From Webpage")
 window.geometry("1920x1080")
 
+DatabaseStatusText = tk.Label(window, text="Database: ")
+DatabaseStatusText.grid(row=0,column=0)
+DBStatusText = tk.Label(window, text="Checking")
+DBStatusText.grid(row=0,column=1)
+
 AddProductLinkText = tk.Label(window, text="Product Link: ")
-AddProductLinkText.grid(row=0,column=0)
+AddProductLinkText.grid(row=1,column=0)
 AddProductLinkEntry = tk.Entry(window)
-AddProductLinkEntry.grid(row=0,column=1)
+AddProductLinkEntry.grid(row=1,column=1)
 AddProductLinkPaste = tk.Button(window,text="Paste Link",command=PasteSingleProductLinkIntoEntry)
-AddProductLinkPaste.grid(row=0,column=2)
+AddProductLinkPaste.grid(row=1,column=2)
 AddProductLinkButton = tk.Button(window, text = "Add Link", command=SingleLinkDataCode)
-AddProductLinkButton.grid(row=0,column=3)
+AddProductLinkButton.grid(row=1,column=3)
 
 SingleProductLinkResultText = tk.Label(window, text="Ready")
-SingleProductLinkResultText.grid(row=1,column=0)
+SingleProductLinkResultText.grid(row=2,column=0)
 
+
+EmptyRow1 = tk.Label(window, text="     ")
+EmptyRow1.grid(row=3,column=0)
+
+
+MultipleProductLinkText = tk.Label(window, text="Results Page Link: ")
+MultipleProductLinkText.grid(row=4,column=0)
+MultipleProductLinkEntry = tk.Entry(window)
+MultipleProductLinkEntry.grid(row=4,column=1)
+MultipleProductLinkPaste = tk.Button(window,text="Paste Link",command=PasteMultipleProductLinkIntoEntry)
+MultipleProductLinkPaste.grid(row=4,column=2)
+MultipleProductLinkButton = tk.Button(window, text = "Add Link", command=lambda: MultipleResultsDataCode(MultipleProductLinkEntry.get()))
+MultipleProductLinkButton.grid(row=4,column=3)
+
+MultipleProductLinkResultText = tk.Label(window, text="Ready")
+MultipleProductLinkResultText.grid(row=5,column=0)
 
 ButtonExit = tk.Button(window, text="Exit program", command=window.destroy)
-ButtonExit.grid(row=3,column=0)
+ButtonExit.grid(row=6,column=0)
 
+
+Check_Database_Status()
 window.mainloop()
