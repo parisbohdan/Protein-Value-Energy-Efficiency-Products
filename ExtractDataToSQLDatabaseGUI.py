@@ -58,6 +58,29 @@ db_config = {
     'database': 'pvees'
 }
 
+def ResultsOfMultipleProductDataEntryPopUp(SuccessfulLinksNumber, PreExistingLinksNumber, FailedLinksNumber):
+    ResultBox = tk.Toplevel(window)
+    ResultBox.geometry("300x400")
+    ResultBox.title("Results")
+    SuccessfulLinksLabelItem = tk.Label(ResultBox,text="Successful links:")
+    SuccessfulLinksLabelItem.grid(row=0,column=0)
+    SuccessfulLinksLabelNumber = tk.Label(ResultBox,text=str(SuccessfulLinksNumber))
+    SuccessfulLinksLabelNumber.grid(row=0,column=1)
+
+    PreExistingLinksLabelItem = tk.Label(ResultBox,text="Already completed links:")
+    PreExistingLinksLabelItem.grid(row=1,column=0)
+    PreExistingLinksLabelNumber = tk.Label(ResultBox,text=str(PreExistingLinksNumber))
+    PreExistingLinksLabelNumber.grid(row=1,column=1)
+
+    FailedLinksLabelItem = tk.Label(ResultBox,text="Failed links:")
+    FailedLinksLabelItem.grid(row=2,column=0)
+    FailedLinksLabelNumber = tk.Label(ResultBox,text=str(FailedLinksNumber))
+    FailedLinksLabelNumber.grid(row=2,column=1)
+
+    ExitButton = tk.Button(ResultBox, text="Okay", command = ResultBox.destroy)
+    ExitButton.grid(row=3,column=0, columnspan=2)
+
+
 def PasteSingleProductLinkIntoEntry():
     LinkToPaste = pyperclip.paste()
     AddProductLinkEntry.delete(0, tk.END)
@@ -495,8 +518,16 @@ def Aldi_UK_Automated_Pull_In(link_to_page_1): # Needs work/barely started
         # Close the browser tab
         pyautogui.hotkey('ctrl', 'w')  # Use 'command' instead of 'ctrl' on macOS
     print(Product_Links)
+    SUCCESSFUL_LINKS = 0
+    PREEXISTING_LINKS = 0
+    FAILED_LINKS = 0
     for product_link in Product_Links:
-        Protected_Single_Item_Aldi_Code(product_link)
+        SuccessOnLink = Protected_Single_Item_Aldi_Code(product_link)
+        if SuccessOnLink == 1:
+            SUCCESSFUL_LINKS +=1
+        else:
+            FAILED_LINKS += 1
+    ResultsOfMultipleProductDataEntryPopUp(SUCCESSFUL_LINKS,PREEXISTING_LINKS,FAILED_LINKS)
 
 
 def Failed_Link_Insert_Record(failed_link,error_info):
@@ -755,9 +786,11 @@ def Protected_Single_Item_Aldi_Code(URL_use):
     try:
         Extract_Data_From_ALDI_UK_Using_Inspect(URL_use)
         SingleProductLinkResultText.config(text="Success")
+        return 1
     except Exception as error:
         SingleProductLinkResultText.config(text="Failed")
         Failed_Link_Insert_Record(URL_use,StripErrorMessageOfQuotesAndReplaceWithSemiColons(str(error)))
+        return 0
 
 def MultipleResultsDataCode(results_page_link):
     if(Extract_Nutitional_Item_Value(results_page_link,r'https://groceries.aldi.co.uk/en-GB/[a-zA-Z-/]+?',0,300)):
