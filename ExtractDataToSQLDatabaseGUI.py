@@ -4,9 +4,10 @@ import pyperclip
 import time
 import re
 import tkinter as tk
-
+import os
 import mysql.connector
 
+#Redundant but kept
 Screen_and_Inspect_Settings = {
     'screen_width' : 1920,
     'screen_height' : 1080,
@@ -50,46 +51,13 @@ def TestSettingsCheck(link):
     pyautogui.moveTo(1850 - Screen_and_Inspect_Settings['Inspect_width'], 140 + Screen_and_Inspect_Settings['Inspect_height'], duration=1)
     time.sleep(5)
 
-# Database connection parameters
+# Database functions - connection parameters and supporting code
 db_config = {
     'host': '127.0.0.1',
     'user': 'PythonInsert',
     'password': 'Python123',
     'database': 'pvees'
 }
-
-def ResultsOfMultipleProductDataEntryPopUp(SuccessfulLinksNumber, PreExistingLinksNumber, FailedLinksNumber):
-    ResultBox = tk.Toplevel(window)
-    ResultBox.geometry("300x400")
-    ResultBox.title("Results")
-    SuccessfulLinksLabelItem = tk.Label(ResultBox,text="Successful links:")
-    SuccessfulLinksLabelItem.grid(row=0,column=0)
-    SuccessfulLinksLabelNumber = tk.Label(ResultBox,text=str(SuccessfulLinksNumber))
-    SuccessfulLinksLabelNumber.grid(row=0,column=1)
-
-    PreExistingLinksLabelItem = tk.Label(ResultBox,text="Already completed links:")
-    PreExistingLinksLabelItem.grid(row=1,column=0)
-    PreExistingLinksLabelNumber = tk.Label(ResultBox,text=str(PreExistingLinksNumber))
-    PreExistingLinksLabelNumber.grid(row=1,column=1)
-
-    FailedLinksLabelItem = tk.Label(ResultBox,text="Failed links:")
-    FailedLinksLabelItem.grid(row=2,column=0)
-    FailedLinksLabelNumber = tk.Label(ResultBox,text=str(FailedLinksNumber))
-    FailedLinksLabelNumber.grid(row=2,column=1)
-
-    ExitButton = tk.Button(ResultBox, text="Okay", command = ResultBox.destroy)
-    ExitButton.grid(row=3,column=0, columnspan=2)
-
-
-def PasteSingleProductLinkIntoEntry():
-    LinkToPaste = pyperclip.paste()
-    AddProductLinkEntry.delete(0, tk.END)
-    AddProductLinkEntry.insert(0, LinkToPaste)
-
-def PasteMultipleProductLinkIntoEntry():
-    LinkToPaste = pyperclip.paste()
-    MultipleProductLinkEntry.delete(0, tk.END)
-    MultipleProductLinkEntry.insert(0, LinkToPaste)
 
 def Check_Database_Status():
     try:
@@ -100,23 +68,34 @@ def Check_Database_Status():
         DBStatusText.config(text="Not available")
         window.after(1000,Check_Database_Status)
 
-def StripErrorMessageOfQuotesAndReplaceWithSemiColons(error_to_deal_with):
-    new_error_message = ""
-    for character in error_to_deal_with:
-        if character== "'":
-            new_error_message += ";"
-        else:
-            new_error_message += character
-    return new_error_message
+def Failed_Link_Insert_Record(failed_link,error_info):
+    # SQL statement to execute
+    SQL_Statement = f"INSERT INTO `failedlinks`(`Link`, `ErrorInfo`) VALUES ('{failed_link}','{error_info}')"
+    print(SQL_Statement)
 
-def Escape_Quote_Mark_In_String(string_given):
-    string_output = ""
-    for each_character in string_given:
-        if each_character == "'":
-            string_output += ";" # Need to fix this
-        else:
-            string_output += each_character
-    return string_output
+    try:
+        # Establish a database connection
+        connection = mysql.connector.connect(**db_config)
+
+        # Create a cursor object
+        cursor = connection.cursor()
+
+        # Execute the INSERT statement
+        cursor.execute(SQL_Statement)
+
+        # Commit the transaction
+        connection.commit()
+
+        print(f"Row inserted.{failed_link}")
+
+    except mysql.connector.Error as error:
+        print(f"Error: {error}")
+
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
+            print("MySQL connection is closed")
 
 def Check_If_URL_Exists_In_Database(url):
     # Create a connection to the database
@@ -148,6 +127,95 @@ def Check_If_URL_Exists_In_Database(url):
         cursor.close()
         connection.close()
 
+# Supporting Functions for more regular mundane taks (non-database related)
+
+def wait_for_download(filename_to_download):
+    WAIT = 1
+    directory_path = 'C:/Users/bohda/Documents/Python Codes/ProjectPVEES'
+    while (WAIT):
+        # List all files and directories in the specified path
+        contents = os.listdir(directory_path)
+        for item in contents:
+            if item == filename_to_download:
+                WAIT = 0
+        time.sleep(0.5)
+    #print("done!")
+    
+def Open_Webpage_and_Extract_All_HTML(URL):
+    webbrowser.open(URL)
+    time.sleep(4)
+
+    pyautogui.moveTo(10, 200, duration=1)
+    pyautogui.click()
+    time.sleep(1)
+
+    pyautogui.hotkey('ctrl','s')
+    time.sleep(2)
+    pyautogui.hotkey('ctrl','c')
+    time.sleep(0.5)
+
+    HTML_File_Name = pyperclip.paste() + ".html"
+    pyautogui.press('enter')
+    wait_for_download(HTML_File_Name)
+    pyautogui.hotkey('ctrl','w')
+    time.sleep(1)
+
+    # Specify the directory you want to list
+    directory_path = 'C:/Users/bohda/Documents/Python Codes/ProjectPVEES'
+
+    # List all files and directories in the specified path
+    contents = os.listdir(directory_path)
+
+    # Print the contents
+    for item in contents:
+        if HTML_File_Name == item:# broken but why
+            #This means the file exists
+            with open(item, 'r', encoding='utf-8') as file:
+                HTML_contents = file.read()
+            os.remove(item)
+            return HTML_contents
+    return None
+
+def ResultsOfMultipleProductDataEntryPopUp(SuccessfulLinksNumber, PreExistingLinksNumber, FailedLinksNumber):
+    ResultBox = tk.Toplevel(window)
+    ResultBox.geometry("300x400")
+    ResultBox.title("Results")
+    SuccessfulLinksLabelItem = tk.Label(ResultBox,text="Successful links:")
+    SuccessfulLinksLabelItem.grid(row=0,column=0)
+    SuccessfulLinksLabelNumber = tk.Label(ResultBox,text=str(SuccessfulLinksNumber))
+    SuccessfulLinksLabelNumber.grid(row=0,column=1)
+
+    PreExistingLinksLabelItem = tk.Label(ResultBox,text="Already completed links:")
+    PreExistingLinksLabelItem.grid(row=1,column=0)
+    PreExistingLinksLabelNumber = tk.Label(ResultBox,text=str(PreExistingLinksNumber))
+    PreExistingLinksLabelNumber.grid(row=1,column=1)
+
+    FailedLinksLabelItem = tk.Label(ResultBox,text="Failed links:")
+    FailedLinksLabelItem.grid(row=2,column=0)
+    FailedLinksLabelNumber = tk.Label(ResultBox,text=str(FailedLinksNumber))
+    FailedLinksLabelNumber.grid(row=2,column=1)
+
+    ExitButton = tk.Button(ResultBox, text="Okay", command = ResultBox.destroy)
+    ExitButton.grid(row=3,column=0, columnspan=2)
+
+def StripErrorMessageOfQuotesAndReplaceWithSemiColons(error_to_deal_with):
+    new_error_message = ""
+    for character in error_to_deal_with:
+        if character== "'":
+            new_error_message += ";"
+        else:
+            new_error_message += character
+    return new_error_message
+
+def Escape_Quote_Mark_In_String(string_given):
+    string_output = ""
+    for each_character in string_given:
+        if each_character == "'":
+            string_output += ";" # Need to fix this
+        else:
+            string_output += each_character
+    return string_output
+
 def CopyElementDataToClipboard(downs):
     time.sleep(0.1)
     pyautogui.moveTo(1800, 140 + Screen_and_Inspect_Settings['Inspect_height'] - 5, duration=-0.5)
@@ -162,7 +230,7 @@ def CopyElementDataToClipboard(downs):
     pyautogui.press('enter')
     time.sleep(0.1)
 
-def Extract_Nutitional_Item_Value(content, pattern, start_extraction, end_extraction):
+def Extract_Pattern_Data_With_Range(content, pattern, start_extraction, end_extraction):
         # Search for the pattern in the text
         matches_dia_item_value = re.findall(pattern, content)
 
@@ -245,6 +313,12 @@ def InsertProductwithSQL(Country, City, Name, SnackBool, MealBool, IngredientBoo
             cursor.close()
             connection.close()
             print("MySQL connection is closed")
+
+# Single Link Data Extraction from Specific Websites
+def PasteSingleProductLinkIntoEntry():
+    LinkToPaste = pyperclip.paste()
+    AddProductLinkEntry.delete(0, tk.END)
+    AddProductLinkEntry.insert(0, LinkToPaste)
 
 def Extract_Data_From_Dia_Spain_Using_Inspect(link):
 
@@ -339,17 +413,17 @@ def Extract_Data_From_Dia_Spain_Using_Inspect(link):
 
     try:
         ##### Name pain
-        ProductName = Extract_Nutitional_Item_Value(NutritionalContentValues,r'"primary_info":{"title":"[a-zA-Z0-9 ]+"},',15,-3)
+        ProductName = Extract_Pattern_Data_With_Range(NutritionalContentValues,r'"primary_info":{"title":"[a-zA-Z0-9 ]+"},',15,-3)
     except:
-        ProductName = Extract_Nutitional_Item_Value(NutritionalElementValue,r'"">[A-Za-z0-9 -\'áéíóúüñÁÉÍÓÚÜÑ]+</',3,-2)
+        ProductName = Extract_Pattern_Data_With_Range(NutritionalElementValue,r'"">[A-Za-z0-9 -\'áéíóúüñÁÉÍÓÚÜÑ]+</',3,-2)
   
     ##### Price
-    ProductPrice = float(Extract_Nutitional_Item_Value(NutritionalContentValues,r',"price":[0-9]+.?[0-9]?[0-9]?,',9,-1))
+    ProductPrice = float(Extract_Pattern_Data_With_Range(NutritionalContentValues,r',"price":[0-9]+.?[0-9]?[0-9]?,',9,-1))
     
 
 
     ##### Weight
-    TotalWeight = Extract_Nutitional_Item_Value(NutritionalContentValues,r'"Contenido neto: [0-9]+.?[0-9]?[0-9]?[0-9]?K?g"',17,-2)
+    TotalWeight = Extract_Pattern_Data_With_Range(NutritionalContentValues,r'"Contenido neto: [0-9]+.?[0-9]?[0-9]?[0-9]?K?g"',17,-2)
     if TotalWeight[-1:]=='K': #Weight in kg multiply by 1000
         TotalWeight = int(float(TotalWeight[:-1]) * 1000)
         print(TotalWeight)
@@ -357,46 +431,151 @@ def Extract_Data_From_Dia_Spain_Using_Inspect(link):
         TotalWeight = int(TotalWeight)
 
     # Calories 
-    Calories_per_100g = float(Extract_Nutitional_Item_Value(NutritionalContentValues,r'"nutritional_values":{"energy_value":[0-9]+,',37,-1))
+    Calories_per_100g = float(Extract_Pattern_Data_With_Range(NutritionalContentValues,r'"nutritional_values":{"energy_value":[0-9]+,',37,-1))
 
     #### Fats
-    Fats_per_100g = float(Extract_Nutitional_Item_Value(NutritionalContentValues,r'"title":"Grasas","value":[0-9]+.?[0-9]?[0-9]?[0-9]?,',25,-1))
+    Fats_per_100g = float(Extract_Pattern_Data_With_Range(NutritionalContentValues,r'"title":"Grasas","value":[0-9]+.?[0-9]?[0-9]?[0-9]?,',25,-1))
 
     #### Sats
-    SaturatedFats_per_100g = float(Extract_Nutitional_Item_Value(NutritionalContentValues,r'"de las cuales saturadas","value":[0-9]+.?[0-9]?[0-9]?[0-9]?,',34,-1))
+    SaturatedFats_per_100g = float(Extract_Pattern_Data_With_Range(NutritionalContentValues,r'"de las cuales saturadas","value":[0-9]+.?[0-9]?[0-9]?[0-9]?,',34,-1))
 
 
     ##### Carbs
-    Carbohydrates_per_100g = float(Extract_Nutitional_Item_Value(NutritionalContentValues,r'"Hidratos de Carbono","value":[0-9]+.?[0-9]?[0-9]?[0-9]?,',30,-1))
+    Carbohydrates_per_100g = float(Extract_Pattern_Data_With_Range(NutritionalContentValues,r'"Hidratos de Carbono","value":[0-9]+.?[0-9]?[0-9]?[0-9]?,',30,-1))
 
 
     #### Sugars
-    Sugars_per_100g = float(Extract_Nutitional_Item_Value(NutritionalContentValues,r'"de los cuales azúcares","value":[0-9]+.?[0-9]?[0-9]?[0-9]?,',33,-1))
+    Sugars_per_100g = float(Extract_Pattern_Data_With_Range(NutritionalContentValues,r'"de los cuales azúcares","value":[0-9]+.?[0-9]?[0-9]?[0-9]?,',33,-1))
 
     # Fiber
     Fibers_per_100g = 0
 
     ### Protein
-    Protein_per_100g = float(Extract_Nutitional_Item_Value(NutritionalContentValues,r'"Proteínas","value":[0-9]+.?[0-9]?[0-9]?[0-9]?,',20,-1))
+    Protein_per_100g = float(Extract_Pattern_Data_With_Range(NutritionalContentValues,r'"Proteínas","value":[0-9]+.?[0-9]?[0-9]?[0-9]?,',20,-1))
     
 
     ## Salt
     try:
-        Salt_per_100g = float(Extract_Nutitional_Item_Value(NutritionalContentValues,r'"Sal","value":[0-9]+.?[0-9]+?,',14,-1))
+        Salt_per_100g = float(Extract_Pattern_Data_With_Range(NutritionalContentValues,r'"Sal","value":[0-9]+.?[0-9]+?,',14,-1))
     except:
-        Salt_per_100g = float(Extract_Nutitional_Item_Value(NutritionalContentValues,r'"Sal","value":[0-9]+.?[0-9]?[0-9]?[0-9]?,',14,-1))
+        Salt_per_100g = float(Extract_Pattern_Data_With_Range(NutritionalContentValues,r'"Sal","value":[0-9]+.?[0-9]?[0-9]?[0-9]?,',14,-1))
 
     
     ProtienValueDiaProduct, ProtienEnergyEfficiencyDiaProduct, ProteinValueEnergyEfficiencyDiaProduct = CalulateScores(Protein_per_100g,TotalWeight,ProductPrice,Calories_per_100g)
     return ProductName, ProductPrice,TotalWeight, Calories_per_100g, Fats_per_100g, SaturatedFats_per_100g, Carbohydrates_per_100g, Sugars_per_100g, Fibers_per_100g, Protein_per_100g, Salt_per_100g, ProtienValueDiaProduct, ProtienEnergyEfficiencyDiaProduct, ProteinValueEnergyEfficiencyDiaProduct, 0
 
-def Aldi_UK_Automated_Pull_In(link_to_page_1): # Needs work/barely started
+def Extract_Data_From_ALDI_UK_Using_Inspect(link):
+    # Open URL in Chrome
+    webbrowser.open(link)
+
+    # Wait for the page to load
+    time.sleep(4)
+
+    #Move to 10, 100
+    pyautogui.moveTo(10, 200, duration=1)
+    pyautogui.click()
+
+    #Wait 1 second
+    time.sleep(1)
+
+    # Right click
+    pyautogui.click(button='right')
+
+    #Wait 2 seconds
+    time.sleep(1)
+
+    # Go up 1 item to Inspect
+    pyautogui.press('up')
+
+    # Press Enter
+    pyautogui.press('enter')
+
+    time.sleep(1)
+
+    pyautogui.moveTo(1800, 140 + Screen_and_Inspect_Settings['Inspect_height'] - 5, duration=1)
+    pyautogui.click()
+
+    # Then Ctrl + F [You will now be in the search box]
+    pyautogui.hotkey('ctrl', 'f')
+    time.sleep(1)  # Wait for copy
+
+    # Now paste the contents of the search tem you want likely lots of information
+    pyautogui.typewrite("body")
+    time.sleep(1)
+    pyautogui.press('enter')
+    pyautogui.press('enter')
+    time.sleep(1)
+    pyautogui.moveTo(1800, 140 + Screen_and_Inspect_Settings['Inspect_height'] - 5, duration=1)
+    CopyElementDataToClipboard(6)
+
+    time.sleep(1)
+
+
+    AllProductDataFromWebpage = pyperclip.paste()
+    
+    # Close the browser tab
+    pyautogui.hotkey('ctrl', 'w')  # Use 'command' instead of 'ctrl' on macOS
+
+
+    AldiUKProductName = Extract_Pattern_Data_With_Range(AllProductDataFromWebpage,r'<h1 class="my-0">[a-zA-Z0-9 \'\-\+&;\/%]+</h1>',17,-5) 
+    AldiUKProductPrice = float(Extract_Pattern_Data_With_Range(AllProductDataFromWebpage,r'<span class="product-price h4 m-0 font-weight-bold">£[0-9].[0-9][0-9]</span>',53,-7))
+    AldiProductTotalWeight = int(Extract_Pattern_Data_With_Range(AllProductDataFromWebpage,r'<td>[0-9]+g<[/]td>',4,-6))
+    AldiNutritionalInformation = Extract_Pattern_Data_With_Range(AllProductDataFromWebpage,r'Energy [0-9]+kJ, [0-9]+kcal Fat &?l?t?;?[0-9]+.?[0-9]?[0-9]?g of which saturates &?l?t?;?[0-9]+.?[0-9]?[0-9]?g Carbohydrate &?l?t?;?[0-9]+.?[0-9]?[0-9]?g of which sugars &?l?t?;?[0-9]+.?[0-9]?[0-9]?g Fibre &?l?t?;?[0-9]+.?[0-9]?[0-9]?g Protein &?l?t?;?[0-9]+.?[0-9]?[0-9]?g Salt &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',0,200)
+    #Needs much more filtering and protection
+
+    print(AldiNutritionalInformation)
+
+
+    AldiProductCalories = int(Extract_Pattern_Data_With_Range(AldiNutritionalInformation,r'[0-9]+kcal',0,-4)) 
+    AldiProductFats = float(Extract_Pattern_Data_With_Range(AldiNutritionalInformation,r'Fat &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',4,-1)) 
+    AldiProductSats = float(Extract_Pattern_Data_With_Range(Extract_Pattern_Data_With_Range(AldiNutritionalInformation,r'which saturates &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',16,-1),r'[0-9]+.?[0-9]?[0-9]?',0,20)) 
+    AldiProductCarbohydrates = float(Extract_Pattern_Data_With_Range(Extract_Pattern_Data_With_Range(AldiNutritionalInformation,r'Carbohydrate &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',13,-1),r'[0-9]+.?[0-9]?[0-9]?',0,20)) 
+    AldiProductSugars = float(Extract_Pattern_Data_With_Range(Extract_Pattern_Data_With_Range(AldiNutritionalInformation,r'which sugars &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',12,-1),r'[0-9]+.?[0-9]?[0-9]?',0,20)) 
+    AldiProductFibers = float(Extract_Pattern_Data_With_Range(Extract_Pattern_Data_With_Range(AldiNutritionalInformation,r'Fibre &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',6,-1),r'[0-9]+.?[0-9]?[0-9]?',0,20)) 
+    AldiProductProtien = float(Extract_Pattern_Data_With_Range(Extract_Pattern_Data_With_Range(AldiNutritionalInformation,r'Protein &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',8,-1),r'[0-9]+.?[0-9]?[0-9]?',0,20)) 
+    AldiProductSalt = float(Extract_Pattern_Data_With_Range(Extract_Pattern_Data_With_Range(AldiNutritionalInformation,r'Salt &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',5,-1),r'[0-9]+.?[0-9]?[0-9]?',0,20)) 
+    AldiUKShop = "Aldi"
+    AldiUKCountry = "United Kingdom"
+    AldiUKProductPV, AldiUKProductPEE, AldiUKProductPVEES = CalulateScores(AldiProductProtien,AldiProductTotalWeight,AldiUKProductPrice,AldiProductCalories)
+    InsertProductwithSQL(AldiUKCountry,"Manchester",Escape_Quote_Mark_In_String(AldiUKProductName),1,0,1,AldiUKShop,link,AldiUKProductPrice,AldiProductTotalWeight,AldiProductCalories,AldiProductFats,AldiProductSats,AldiProductCarbohydrates,AldiProductSugars,AldiProductFibers,AldiProductProtien,AldiProductSalt,AldiUKProductPV,AldiUKProductPEE,AldiUKProductPVEES,0 )
+
+def Protected_Single_Item_Aldi_Code(URL_use):
+    try:
+        Extract_Data_From_ALDI_UK_Using_Inspect(URL_use)
+        SingleProductLinkResultText.config(text="Success")
+        return 1
+    except Exception as error:
+        SingleProductLinkResultText.config(text="Failed")
+        Failed_Link_Insert_Record(URL_use,StripErrorMessageOfQuotesAndReplaceWithSemiColons(str(error)))
+        return 0
+
+def Extract_Single_Product_Data_From_Carrefour_Spain_Using_Save(link):
+    page_data = Open_Webpage_and_Extract_All_HTML(link)
+    Pattern_Price = r'<span class="buybox__price">\n[ ]+[0-9,]+[ ]€'
+    Pattern_Name = r''
+    Pattern_Weight = r''
+    Pattern_Fats = r'<span>Grasas \(g\)<\/span><\/span><span class="nutrition-legend__fright">&?l?t?;?[0-9]+.?[0-9]?[0-9]?[0-9]? g <\/span>'
+
+def Extract_Data_From_BMUrban_Spain_Using_Inspect(link):
+    pass
+
+def Extract_Data_From_Tesco_UK_Using_Inspect(link):
+    pass
+
+
+# Multiple Products extracted from website functions
+def PasteMultipleProductLinkIntoEntry():
+    LinkToPaste = pyperclip.paste()
+    MultipleProductLinkEntry.delete(0, tk.END)
+    MultipleProductLinkEntry.insert(0, LinkToPaste)
+
+def Aldi_UK_Automated_Pull_In(link_to_page_1): # Works well but still uses inspect could be improved
     PATTERN_FOR_NUMBER_OF_PRODUCTS = r'<h1 class="font-weight-normal">[a-zA-Z ]+\(<span>[0-9]+<\/span>\)'
     PATTERN_FOR_PRODUCT_LINKS = r'href="/en-GB/[A-Za-z-0-9%\';&]+/[0-9]+"'
     PATTERN_FOR_NUMBER_OF_PAGES = r'&nbsp;of [0-9]+&nbsp'
     
     # Open URL in Chrome
-    Link_To_Page_without_Number = Extract_Nutitional_Item_Value(link_to_page_1,r'https://[a-zA-Z.\-/]+\?',0,200) + "&page="
+    Link_To_Page_without_Number = Extract_Pattern_Data_With_Range(link_to_page_1,r'https://[a-zA-Z.\-/]+\?',0,200) + "&page="
     webbrowser.open(link_to_page_1)
 
     # Wait for the page to load
@@ -447,7 +626,7 @@ def Aldi_UK_Automated_Pull_In(link_to_page_1): # Needs work/barely started
 
 
     ## Now grab data on number of webpages to use:
-    Number_of_Pages = int(Extract_Nutitional_Item_Value(Extract_Nutitional_Item_Value(AllProductsFromWebpage,PATTERN_FOR_NUMBER_OF_PAGES,0,100),r'[0-9]+',0,100))
+    Number_of_Pages = int(Extract_Pattern_Data_With_Range(Extract_Pattern_Data_With_Range(AllProductsFromWebpage,PATTERN_FOR_NUMBER_OF_PAGES,0,100),r'[0-9]+',0,100))
     print(Number_of_Pages)
 
     pyautogui.hotkey('ctrl', 'w')  # Use 'command' instead of 'ctrl' on macOS
@@ -530,234 +709,7 @@ def Aldi_UK_Automated_Pull_In(link_to_page_1): # Needs work/barely started
     ResultsOfMultipleProductDataEntryPopUp(SUCCESSFUL_LINKS,PREEXISTING_LINKS,FAILED_LINKS)
 
 
-def Failed_Link_Insert_Record(failed_link,error_info):
-    # SQL statement to execute
-    SQL_Statement = f"INSERT INTO `failedlinks`(`Link`, `ErrorInfo`) VALUES ('{failed_link}','{error_info}')"
-    print(SQL_Statement)
-
-    try:
-        # Establish a database connection
-        connection = mysql.connector.connect(**db_config)
-
-        # Create a cursor object
-        cursor = connection.cursor()
-
-        # Execute the INSERT statement
-        cursor.execute(SQL_Statement)
-
-        # Commit the transaction
-        connection.commit()
-
-        print(f"Row inserted.{failed_link}")
-
-    except mysql.connector.Error as error:
-        print(f"Error: {error}")
-
-    finally:
-        if connection.is_connected():
-            cursor.close()
-            connection.close()
-            print("MySQL connection is closed")
-
-def Extract_Data_From_ALDI_UK_Using_Inspect(link):
-    # Open URL in Chrome
-    webbrowser.open(link)
-
-    # Wait for the page to load
-    time.sleep(4)
-
-    #Move to 10, 100
-    pyautogui.moveTo(10, 200, duration=1)
-    pyautogui.click()
-
-    #Wait 1 second
-    time.sleep(1)
-
-    # Right click
-    pyautogui.click(button='right')
-
-    #Wait 2 seconds
-    time.sleep(1)
-
-    # Go up 1 item to Inspect
-    pyautogui.press('up')
-
-    # Press Enter
-    pyautogui.press('enter')
-
-    time.sleep(1)
-
-    pyautogui.moveTo(1800, 140 + Screen_and_Inspect_Settings['Inspect_height'] - 5, duration=1)
-    pyautogui.click()
-
-    # Then Ctrl + F [You will now be in the search box]
-    pyautogui.hotkey('ctrl', 'f')
-    time.sleep(1)  # Wait for copy
-
-    # Now paste the contents of the search tem you want likely lots of information
-    pyautogui.typewrite("body")
-    time.sleep(1)
-    pyautogui.press('enter')
-    pyautogui.press('enter')
-    time.sleep(1)
-    pyautogui.moveTo(1800, 140 + Screen_and_Inspect_Settings['Inspect_height'] - 5, duration=1)
-    CopyElementDataToClipboard(6)
-
-    time.sleep(1)
-
-
-    AllProductDataFromWebpage = pyperclip.paste()
-    
-    # Close the browser tab
-    pyautogui.hotkey('ctrl', 'w')  # Use 'command' instead of 'ctrl' on macOS
-
-
-    AldiUKProductName = Extract_Nutitional_Item_Value(AllProductDataFromWebpage,r'<h1 class="my-0">[a-zA-Z0-9 \'\-\+&;\/%]+</h1>',17,-5) 
-    AldiUKProductPrice = float(Extract_Nutitional_Item_Value(AllProductDataFromWebpage,r'<span class="product-price h4 m-0 font-weight-bold">£[0-9].[0-9][0-9]</span>',53,-7))
-    AldiProductTotalWeight = int(Extract_Nutitional_Item_Value(AllProductDataFromWebpage,r'<td>[0-9]+g<[/]td>',4,-6))
-    AldiNutritionalInformation = Extract_Nutitional_Item_Value(AllProductDataFromWebpage,r'Energy [0-9]+kJ, [0-9]+kcal Fat &?l?t?;?[0-9]+.?[0-9]?[0-9]?g of which saturates &?l?t?;?[0-9]+.?[0-9]?[0-9]?g Carbohydrate &?l?t?;?[0-9]+.?[0-9]?[0-9]?g of which sugars &?l?t?;?[0-9]+.?[0-9]?[0-9]?g Fibre &?l?t?;?[0-9]+.?[0-9]?[0-9]?g Protein &?l?t?;?[0-9]+.?[0-9]?[0-9]?g Salt &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',0,200)
-    #Needs much more filtering and protection
-
-    print(AldiNutritionalInformation)
-
-
-    AldiProductCalories = int(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'[0-9]+kcal',0,-4)) 
-    AldiProductFats = float(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'Fat &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',4,-1)) 
-    AldiProductSats = float(Extract_Nutitional_Item_Value(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'which saturates &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',16,-1),r'[0-9]+.?[0-9]?[0-9]?',0,20)) 
-    AldiProductCarbohydrates = float(Extract_Nutitional_Item_Value(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'Carbohydrate &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',13,-1),r'[0-9]+.?[0-9]?[0-9]?',0,20)) 
-    AldiProductSugars = float(Extract_Nutitional_Item_Value(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'which sugars &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',12,-1),r'[0-9]+.?[0-9]?[0-9]?',0,20)) 
-    AldiProductFibers = float(Extract_Nutitional_Item_Value(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'Fibre &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',6,-1),r'[0-9]+.?[0-9]?[0-9]?',0,20)) 
-    AldiProductProtien = float(Extract_Nutitional_Item_Value(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'Protein &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',8,-1),r'[0-9]+.?[0-9]?[0-9]?',0,20)) 
-    AldiProductSalt = float(Extract_Nutitional_Item_Value(Extract_Nutitional_Item_Value(AldiNutritionalInformation,r'Salt &?l?t?;?[0-9]+.?[0-9]?[0-9]?g',5,-1),r'[0-9]+.?[0-9]?[0-9]?',0,20)) 
-    AldiUKShop = "Aldi"
-    AldiUKCountry = "United Kingdom"
-    AldiUKProductPV, AldiUKProductPEE, AldiUKProductPVEES = CalulateScores(AldiProductProtien,AldiProductTotalWeight,AldiUKProductPrice,AldiProductCalories)
-    InsertProductwithSQL(AldiUKCountry,"Manchester",Escape_Quote_Mark_In_String(AldiUKProductName),1,0,1,AldiUKShop,link,AldiUKProductPrice,AldiProductTotalWeight,AldiProductCalories,AldiProductFats,AldiProductSats,AldiProductCarbohydrates,AldiProductSugars,AldiProductFibers,AldiProductProtien,AldiProductSalt,AldiUKProductPV,AldiUKProductPEE,AldiUKProductPVEES,0 )
-
-
-
-
-
-
-
-def Extract_Data_From_Carrefour_Spain_Using_Inspect(link):
-    pass 
-
-def Extract_Data_From_BMUrban_Spain_Using_Inspect(link):
-    pass
-
-def Extract_Data_From_Tesco_UK_Using_Inspect(link):
-    pass
-
-
-
-
-
-
-
-
-
-
-
-def extract_product_info(contents): #chatgpt
-    # Define regular expressions for each piece of information
-    item_name_regex = r"\b[A-Za-z]+[ A-Za-z]+\b"
-    item_price_regex = r"(\d+,\d{2}|\d+.\d{2}) €"
-    item_weight_regex = r"(\d+ g)"
-    calories_regex = r"(\d+ Kcal)"
-    fats_regex = r"Grasas \(g\)\n(\d+\.?\d*) g"
-    sat_fats_regex = r"de las cuales Saturadas \(g\)\n(\d+\.?\d*) g"
-    carbs_regex = r"Hidratos de carbono \(g\)\n(\d+\.?\d*) g"
-    sugars_regex = r"de las cuales Azúcares \(g\)\n(\d+\.?\d*) g"
-    fiber_regex = r"Fibra alimentaria \(g\)\n(\d+\.?\d*) g"
-    protein_regex = r"Proteínas \(g\)\n(\d+\.?\d*) g"
-    salt_regex = r"Sal \(g\)\n(\d+\.?\d*) g"
-
-    # Search for each piece of information in the contents
-    item_name = re.search(item_name_regex, contents)
-    item_price = re.search(item_price_regex, contents)
-    item_weight = re.search(item_weight_regex, contents)
-    calories = re.search(calories_regex, contents)
-    fats = re.search(fats_regex, contents)
-    sat_fats = re.search(sat_fats_regex, contents)
-    carbs = re.search(carbs_regex, contents)
-    sugars = re.search(sugars_regex, contents)
-    fiber = re.search(fiber_regex, contents)
-    protein = re.search(protein_regex, contents)
-    salt = re.search(salt_regex, contents)
-
-    # Extract the information if found, else default to 0
-    product_info = {
-        "Item Name": item_name.group(0) if item_name else "0",
-        "Item Price": item_price.group(1).replace(',', '.') if item_price else "0.00",
-        "Item Weight (g)": int(item_weight.group(1).replace(' g', '')) if item_weight else 0,
-        "Calories (per 100g)": int(calories.group(1).replace(' Kcal', '')) if calories else 0,
-        "Fats (per 100g)": float(fats.group(1)) if fats else 0,
-        "Saturated Fats (per 100g)": float(sat_fats.group(1)) if sat_fats else 0,
-        "Carbohydrates (per 100g)": float(carbs.group(1)) if carbs else 0,
-        "Sugars (per 100g)": float(sugars.group(1)) if sugars else 0,
-        "Fiber (per 100g)": float(fiber.group(1)) if fiber else 0,
-        "Protein (per 100g)": float(protein.group(1)) if protein else 0,
-        "Salt (per 100g)": float(salt.group(1)) if salt else 0
-    }
-
-    return product_info
-
-
-
-def Extract_Data(Link, contents):
-    Shop, Country = extract_shop_and_country(Link)
-
-    pattern_cost = r'([0-9]+),([0-9])([0-9]) €'
-    matches_cost = re.findall(pattern_cost,contents)
-    for match in matches_cost:
-        print(match)
-        options = []
-        if(not (match[0] == '0' and match[1] == '0' and match[2] == '0')):
-            options.append(match[0]+"."+ match[1] + match[2])
-    CostLocalCurrency = options[0]
-    
-    print(Country, Shop, CostLocalCurrency)
-
-
-def Extract_Data_Dia(contents,Link):
-    # Regular expression pattern to find a number up to 10000 followed by 'kcal'
-    Shop, Country = extract_shop_and_country(Link)
-
-    pattern_cals = r'\b([1-9]\d{0,3}|10000)kcal\b'
-
-    # Search for the pattern in the text
-    matches_cals = re.findall(pattern_cals, contents)
-
-    # Print all matches
-    for match in matches_cals:
-        print(match)
-        CALORIES_PER_100G = match
-    
-    pattern_weight_g =  r'Contenido neto: ([1-9]\d{0,3}|10000)g'
-
-    # Search for the pattern in the text
-    matches_weight_g = re.findall(pattern_weight_g, contents)
-
-    # Print all matches
-    for match in matches_weight_g:
-        print(match)
-        TOTAL_WEIGHT = match
-    
-    pattern_weight_kg =  r'Contenido neto: ([1-9]\d{0,3}|10000)kg'
-
-    # Search for the pattern in the text
-    matches_weight_kg = re.findall(pattern_weight_kg, contents)
-
-    # Print all matches
-    for match in matches_weight_kg:
-        print(match)
-        match = str(int(match) * 1000)
-        TOTAL_WEIGHT = match
-
-    print(CALORIES_PER_100G, TOTAL_WEIGHT)
-
-
+# Main code tie in
 def SingleLinkDataCode(): # Main CODE
     URL_use =AddProductLinkEntry.get()
     #TestSettingsCheck(URL_use)
@@ -782,18 +734,8 @@ def SingleLinkDataCode(): # Main CODE
     else:
         print("This product is already in the database.")
 
-def Protected_Single_Item_Aldi_Code(URL_use):
-    try:
-        Extract_Data_From_ALDI_UK_Using_Inspect(URL_use)
-        SingleProductLinkResultText.config(text="Success")
-        return 1
-    except Exception as error:
-        SingleProductLinkResultText.config(text="Failed")
-        Failed_Link_Insert_Record(URL_use,StripErrorMessageOfQuotesAndReplaceWithSemiColons(str(error)))
-        return 0
-
 def MultipleResultsDataCode(results_page_link):
-    if(Extract_Nutitional_Item_Value(results_page_link,r'https://groceries.aldi.co.uk/en-GB/[a-zA-Z-/]+?',0,300)):
+    if(Extract_Pattern_Data_With_Range(results_page_link,r'https://groceries.aldi.co.uk/en-GB/[a-zA-Z-/]+?',0,300)):
        #Aldi multiple items
        Aldi_UK_Automated_Pull_In(results_page_link)
     else:
@@ -839,6 +781,9 @@ MultipleProductLinkResultText.grid(row=5,column=0)
 
 ButtonExit = tk.Button(window, text="Exit program", command=window.destroy)
 ButtonExit.grid(row=6,column=0)
+
+
+
 
 
 Check_Database_Status()
