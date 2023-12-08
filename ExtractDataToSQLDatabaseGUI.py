@@ -7,6 +7,16 @@ import tkinter as tk
 import os
 import mysql.connector
 
+from win10toast import ToastNotifier
+toast = ToastNotifier()
+
+#less_than = "&?l?t?;?"
+#number_or_decimal_dot = "[0-9.]+"
+#number_or_decimal_comma= "[0-9,]+"
+#normal_name_characters = "[a-zA-Z \&\-,.\/*]+"
+#this = rf"Salt {less_than}"
+
+
 #Redundant but kept
 Screen_and_Inspect_Settings = {
     'screen_width' : 1920,
@@ -314,6 +324,15 @@ def InsertProductwithSQL(Country, City, Name, SnackBool, MealBool, IngredientBoo
             connection.close()
             print("MySQL connection is closed")
 
+def NotifyMe(Successful, Failed, Pre_Existing,Total):
+    toast.show_toast(
+    "Project Protien Analysis",
+    f"Successful: {Successful}/{Total} \n Failed: {Failed}/{Total} \n Pre-existing: {Pre_Existing}/{Total}",
+    duration = 4,
+    icon_path = "icon.ico",
+    threaded = True,
+    )
+
 # Single Link Data Extraction from Specific Websites
 def PasteSingleProductLinkIntoEntry():
     LinkToPaste = pyperclip.paste()
@@ -552,9 +571,11 @@ def Protected_Single_Item_Aldi_Code(URL_use):
 def Extract_Single_Product_Data_From_Carrefour_Spain_Using_Save(link):
     page_data = Open_Webpage_and_Extract_All_HTML(link)
     Pattern_Price = r'<span class="buybox__price">\n[ ]+[0-9,]+[ ]€'
-    Pattern_Name = r''
-    Pattern_Weight = r''
+    Pattern_Name = r'<h1 class="product-header__name">\n.{1,}'
+    Pattern_Weight = r'<span class="nutrition-more-info__list-value">\n[ ]+[0-9]+ g'
     Pattern_Fats = r'<span>Grasas \(g\)<\/span><\/span><span class="nutrition-legend__fright">&?l?t?;?[0-9]+.?[0-9]?[0-9]?[0-9]? g <\/span>'
+    Pattern_Sats = r'de las cuales Saturadas \(g\)\n.{1,58}' # Need to search for the specific number
+    Pattern_Carbohydrates = r'<p class="nutrition-legend__value"><span class="nutrition-legend__hydrates"><span class="nutrition-legend__color-box c2"><\/span><span>Hidratos de carbono \(g\)<\/span><\/span><span class="nutrition-legend__fright">[0-9.]+ g <\/span><\/p>'
 
 def Extract_Data_From_BMUrban_Spain_Using_Inspect(link):
     pass
@@ -697,6 +718,7 @@ def Aldi_UK_Automated_Pull_In(link_to_page_1): # Works well but still uses inspe
         # Close the browser tab
         pyautogui.hotkey('ctrl', 'w')  # Use 'command' instead of 'ctrl' on macOS
     print(Product_Links)
+    TOTAL_PRODUCTS = len(Product_Links)
     SUCCESSFUL_LINKS = 0
     PREEXISTING_LINKS = 0
     FAILED_LINKS = 0
@@ -704,9 +726,13 @@ def Aldi_UK_Automated_Pull_In(link_to_page_1): # Works well but still uses inspe
         SuccessOnLink = Protected_Single_Item_Aldi_Code(product_link)
         if SuccessOnLink == 1:
             SUCCESSFUL_LINKS +=1
+            NotifyMe(SUCCESSFUL_LINKS,FAILED_LINKS,PREEXISTING_LINKS,TOTAL_PRODUCTS)
         else:
             FAILED_LINKS += 1
+            NotifyMe(SUCCESSFUL_LINKS,FAILED_LINKS,PREEXISTING_LINKS,TOTAL_PRODUCTS)
     ResultsOfMultipleProductDataEntryPopUp(SUCCESSFUL_LINKS,PREEXISTING_LINKS,FAILED_LINKS)
+
+
 
 
 # Main code tie in
