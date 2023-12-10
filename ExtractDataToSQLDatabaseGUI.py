@@ -6,6 +6,8 @@ import re
 import tkinter as tk
 import os
 import mysql.connector
+from bs4 import BeautifulSoup
+
 
 from win10toast import ToastNotifier
 toast = ToastNotifier()
@@ -333,6 +335,75 @@ def NotifyMe(Successful, Failed, Pre_Existing,Total):
     threaded = True,
     )
 
+# Specific Data Extraction Algorithms
+
+def ExtractName(URL_Content):
+    soup = BeautifulSoup(URL_Content, 'html.parser')
+    
+    # Will edit this to use a database table instead that way I can add to it and edit this much easier.
+
+    # Define your CSS selectors
+    selectors = [
+        # Website: https://www.dia.es/ 
+        '#app > div > div > div > div.pdp-view__content > div.pdp-view__left-content > div.pdp-view__info > div.product-summary > h2',
+
+        # Website: https://groceries.aldi.co.uk/
+        '#vueProductDetails > div > div.col-lg-8 > div > div > h1',
+
+        # Website: https://www.carrefour.es/
+        '#app > div > main > div:nth-child(2) > div.product-header > h1',
+        # Add more selectors as needed
+    ]
+    
+    for selector in selectors:
+        element = soup.select_one(selector)
+        if element:
+            print(element.get_text(strip=True))
+            return element.get_text(strip=True)
+    
+    return "Not Available"
+
+def ExtractPrice(URL_Content):
+    pass
+
+def ExtractTotalWeight(URL_Content):
+    pass
+
+def ExtractShop(URL_Content):
+    pass
+
+def ExtractCountry(URL_Content):
+    pass
+
+def ExtractCaloriesKCAL(URL_Content):
+    pass
+
+def ExtractFats(URL_Content):
+    pass
+
+def ExtractSats(URL_Content):
+    pass
+
+def ExtractCarbohydrates(URL_Content):
+    pass
+
+def ExtractSugars(URL_Content):
+    pass
+
+def ExtractFibre(URL_Content):
+    pass
+
+def ExtractProtien(URL_Content):
+    pass
+
+def ExtractSalt(URL_Content):
+    pass
+
+def TestFunctionForIndividualDataExtraction():
+    LinkUsed = TestFunctionLinkEntry.get()
+    URL_Content = Open_Webpage_and_Extract_All_HTML(LinkUsed)
+    ExtractName(URL_Content)
+
 # Single Link Data Extraction from Specific Websites
 def PasteSingleProductLinkIntoEntry():
     LinkToPaste = pyperclip.paste()
@@ -590,6 +661,11 @@ def PasteMultipleProductLinkIntoEntry():
     MultipleProductLinkEntry.delete(0, tk.END)
     MultipleProductLinkEntry.insert(0, LinkToPaste)
 
+def PasteTestFunctionLinkIntoEntry():
+    LinkToPaste = pyperclip.paste()
+    TestFunctionLinkEntry.delete(0, tk.END)
+    TestFunctionLinkEntry.insert(0, LinkToPaste)
+
 def Aldi_UK_Automated_Pull_In(link_to_page_1): # Works well but still uses inspect could be improved
     PATTERN_FOR_NUMBER_OF_PRODUCTS = r'<h1 class="font-weight-normal">[a-zA-Z ]+\(<span>[0-9]+<\/span>\)'
     PATTERN_FOR_PRODUCT_LINKS = r'href="/en-GB/[A-Za-z-0-9%\';&]+/[0-9]+"'
@@ -808,7 +884,14 @@ MultipleProductLinkResultText.grid(row=5,column=0)
 ButtonExit = tk.Button(window, text="Exit program", command=window.destroy)
 ButtonExit.grid(row=6,column=0)
 
-
+TestFunctionLinkText = tk.Label(window, text="Test Function Link: ")
+TestFunctionLinkText.grid(row=7,column=0)
+TestFunctionLinkEntry = tk.Entry(window)
+TestFunctionLinkEntry.grid(row=7,column=1)
+TestFunctionLinkPaste = tk.Button(window,text="Paste Link",command=PasteTestFunctionLinkIntoEntry)
+TestFunctionLinkPaste.grid(row=7,column=2)
+TestFunctionLinkButton = tk.Button(window, text = "Add Link", command=TestFunctionForIndividualDataExtraction)
+TestFunctionLinkButton.grid(row=7,column=3)
 
 
 
